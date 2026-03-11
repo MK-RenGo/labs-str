@@ -95,18 +95,10 @@ int main() {
     run_test("2. Линейный (I-K-J) ",        [&]() { multiply_ikj(A, B, C); });
     run_test("3. Блочный (Tiling)",        [&]() { multiply_tiled(A, B, C); });
 
-    cout << "\n" << endl;
-
-  
-    string user_text;
-
-    cin.clear();
-  
-    getline(cin >> ws, user_text); 
-
     cout << "\nДружинин Максим Андреевич" << endl;
-    cout << "Группа РПИа -о25" << user_text << endl;
-   
+    cout << "Группа РПИа-о25" << endl;
+  
+    while(getchar() != '\n');
 
     delete[] A; delete[] B; delete[] C;
     return 0;
