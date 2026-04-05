@@ -4,16 +4,19 @@
 #include <chrono>
 #include <iomanip>
 #include <string>
+#include <algorithm>
+#include <cstdlib>
+#include <windows.h>
+#include <openblas/cblas.h>
 
 using namespace std;
-
 
 typedef complex<double> dcomplex;
 
 const int N = 1024;
 const int BLOCK_SIZE = 64; 
 
-// 1. Вариант: Классическое умножение по формуле (I-J-K)
+// 1. Классическое умножение по формуле
 void multiply_ijk(const dcomplex* A, const dcomplex* B, dcomplex* C) {
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j) {
@@ -26,19 +29,19 @@ void multiply_ijk(const dcomplex* A, const dcomplex* B, dcomplex* C) {
     }
 }
 
-// 2. Вариант: Алгоритм с оптимизацией порядка циклов (I-K-J)
-void multiply_ikj(const dcomplex* A, const dcomplex* B, dcomplex* C) {
-    for (int i = 0; i < N; ++i) {
-        for (int k = 0; k < N; ++k) {
-            dcomplex temp = A[i * N + k];
-            for (int j = 0; j < N; ++j) {
-                C[i * N + j] += temp * B[k * N + j];
-            }
-        }
-    }
+// 2. OpenBLAS  
+void multiply_BLAS(const dcomplex* A, const dcomplex* B, dcomplex* C) {
+    dcomplex alpha(1.0, 0.0), beta(0.0, 0.0);
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+                N, N, N,
+                &alpha,
+                reinterpret_cast<const void*>(A), N,
+                reinterpret_cast<const void*>(B), N,
+                &beta,
+                reinterpret_cast<void*>(C), N);
 }
 
-// 3. Вариант: Оптимизированный алгоритм / Tiling
+// 3. Оптимизированный алгоритм / Tiling
 void multiply_tiled(const dcomplex* A, const dcomplex* B, dcomplex* C) {
     for (int ih = 0; ih < N; ih += BLOCK_SIZE) {
         for (int kh = 0; kh < N; kh += BLOCK_SIZE) {
@@ -57,14 +60,16 @@ void multiply_tiled(const dcomplex* A, const dcomplex* B, dcomplex* C) {
 }
 
 int main() {
- 
+
     setlocale(LC_ALL, ".UTF-8");
+
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
 
     auto* A = new dcomplex[N * N];
     auto* B = new dcomplex[N * N];
     auto* C = new dcomplex[N * N];
 
-  
     for (int i = 0; i < N * N; ++i) {
         A[i] = { (double)rand()/RAND_MAX, (double)rand()/RAND_MAX };
         B[i] = { (double)rand()/RAND_MAX, (double)rand()/RAND_MAX };
@@ -87,19 +92,21 @@ int main() {
         
         cout << left << setw(30) << name 
              << " | Время: " << fixed << setprecision(4) << t.count() << " сек"
-             << " | Произв-ть: " << setprecision(2) << mflops << " MFlops" << endl;
+             << " | Производительность: " << setprecision(2) << mflops << " MFlops" << endl;
     };
 
-
-    run_test("1. Классический (I-J-K)",    [&]() { multiply_ijk(A, B, C); });
-    run_test("2. Линейный (I-K-J) ",        [&]() { multiply_ikj(A, B, C); });
-    run_test("3. Блочный (Tiling)",        [&]() { multiply_tiled(A, B, C); });
+    run_test("1. Классический",         [&]() { multiply_ijk(A, B, C); });
+    run_test("2. BLAS",                 [&]() { multiply_BLAS(A, B, C); });
+    run_test("3. Блочный (Tiling)",     [&]() { multiply_tiled(A, B, C); });
 
     cout << "\nДружинин Максим Андреевич" << endl;
-    cout << "Группа РПИа-о25" << endl;
+    cout << "Группа РПИА-о25" << endl;
   
     while(getchar() != '\n');
 
-    delete[] A; delete[] B; delete[] C;
+    delete[] A;
+    delete[] B;
+    delete[] C;
+
     return 0;
 }
